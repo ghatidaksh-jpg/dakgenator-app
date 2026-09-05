@@ -1,120 +1,115 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DakGenator App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DakGenator - AI Prompt Generator</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d0e15">
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f9;
+    * {
+      box-sizing: border-box;
       margin: 0;
-      padding: 16px;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #0b0c10;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+    .app-wrapper {
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      background: #0b0c10;
     }
-    .card {
-      background: #ffffff;
-      width: 100%;
-      max-width: 450px;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    /* Native App Bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      background: #12141d;
+      border-bottom: 1px solid #232736;
     }
-    h1 {
-      margin: 0 0 16px 0;
-      font-size: 22px;
-      text-align: center;
-      color: #222;
+    .app-title {
+      color: #9d7bf5;
+      font-size: 17px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    label {
-      display: block;
-      font-weight: bold;
-      margin: 12px 0 6px 0;
-      color: #444;
-      font-size: 14px;
-    }
-    input[type="text"], input[type="file"] {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    button {
-      width: 100%;
-      background: #0070f3;
+    .install-btn {
+      background: #7952f5;
       color: #ffffff;
       border: none;
+      padding: 6px 14px;
       border-radius: 6px;
-      padding: 12px;
-      font-size: 16px;
-      font-weight: bold;
-      margin-top: 18px;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
-    }
-    button:disabled {
-      background: #888;
-      cursor: not-allowed;
-    }
-    #statusBox {
-      margin-top: 16px;
-      padding: 12px;
-      background: #eef2f6;
-      border-radius: 6px;
-      font-size: 14px;
-      white-space: pre-wrap;
-      word-break: break-word;
       display: none;
+    }
+    /* Embedded Exact Hugging Face Space */
+    iframe {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #0b0c10;
     }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h1>DakGenator</h1>
+  <div class="app-wrapper">
+    <div class="top-bar">
+      <div class="app-title">
+        <span>✨</span> DakGenator
+      </div>
+      <button id="installAppBtn" class="install-btn">Install App</button>
+    </div>
 
-    <label for="promptInput">Prompt / Edit Instruction:</label>
-    <input type="text" id="promptInput" placeholder="Describe the change or style...">
-
-    <label for="filePicker">Upload Image:</label>
-    <input type="file" id="filePicker" accept="image/*">
-
-    <button id="actionBtn" type="button">Generate</button>
-
-    <div id="statusBox"></div>
+    <!-- Direct embed of your DakGenator Space -->
+    <iframe 
+      id="spaceFrame"
+      src="https://dakshghati-dakgenator.hf.space"
+      allow="camera; microphone; clipboard-read; clipboard-write;"
+      loading="eager">
+    </iframe>
   </div>
 
   <script>
-    document.getElementById("actionBtn").addEventListener("click", async function() {
-      var btn = document.getElementById("actionBtn");
-      var status = document.getElementById("statusBox");
-      var prompt = document.getElementById("promptInput").value;
-      var file = document.getElementById("filePicker").files[0];
+    // Register Service Worker for PWA
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(function(e) {
+        console.log("SW registration failed", e);
+      });
+    }
 
-      if (!file) {
-        alert("Please select an image first.");
-        return;
-      }
+    // In-app Chrome Install button handler
+    let deferredPrompt;
+    const installBtn = document.getElementById("installAppBtn");
 
-      btn.disabled = true;
-      btn.innerText = "Processing...";
-      status.style.display = "block";
-      status.innerText = "Connecting to Hugging Face model...";
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = "block";
+    });
 
-      try {
-        var gradio = await import("https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js");
-        var app = await gradio.Client.connect("dakshghati/DakGenator");
-        status.innerText = "Running DakGenator...";
-
-        var result = await app.predict("/predict", [file, prompt]);
-        status.innerText = result.data ? (result.data[0] || JSON.stringify(result.data)) : "Finished!";
-      } catch (err) {
-        status.innerText = "Error: " + err.message;
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Generate";
+    installBtn.addEventListener("click", async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") {
+          installBtn.style.display = "none";
+        }
+        deferredPrompt = null;
       }
     });
   </script>
