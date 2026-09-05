@@ -1,1 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DakGenator App</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 30px auto;
+      padding: 0 15px;
+      background: #f9f9f9;
+      color: #333;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h2 { margin-top: 0; color: #111; }
+    label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }
+    input[type="text"], input[type="file"], button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    button {
+      background: #0070f3;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:disabled { background: #999; }
+    .result {
+      margin-top: 20px;
+      padding: 12px;
+      background: #eee;
+      border-radius: 6px;
+      word-break: break-word;
+      white-space: pre-wrap;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>DakGenator</h2>
+    
+    <label for="desc">Prompt / Instruction:</label>
+    <input type="text" id="desc" placeholder="Describe the edit or style..." />
+
+    <label for="imageInput">Upload Image:</label>
+    <input type="file" id="imageInput" accept="image/*" />
+
+    <button id="submitBtn" onclick="runInference()">Generate</button>
+
+    <div id="output" class="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    // Register Service Worker for PWA / Chrome install
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(function(err) {
+        console.log("SW registration skipped or failed:", err);
+      });
+    }
+
+    async function runInference() {
+      const btn = document.getElementById("submitBtn");
+      const out = document.getElementById("output");
+      const desc = document.getElementById("desc").value;
+      const fileInput = document.getElementById("imageInput");
+
+      if (!fileInput.files[0]) {
+        alert("Please choose an image first.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "Processing...";
+      out.style.display = "block";
+      out.innerText = "Connecting to Hugging Face...";
+
+      try {
+        // Dynamically import the Gradio client on demand
+        const { Client } = await import("https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js");
+        const app = await Client.connect("dakshghati/DakGenator");
+        
+        out.innerText = "Running AI model...";
+        const result = await app.predict("/predict", [
+          fileInput.files[0],
+          desc
+        ]);
+
+        out.innerText = result.data[0] || JSON.stringify(result.data, null, 2);
+      } catch (err) {
+        out.innerText = "Error: " + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Generate";
+      }
+    }
+  </script>
+</body>
+</html>
 
