@@ -1,116 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DakGenator App</title>
-  <link rel="manifest" href="manifest.json" />
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
-      max-width: 500px;
-      margin: 30px auto;
-      padding: 0 15px;
-      background: #f9f9f9;
-      color: #333;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
     }
     .card {
-      background: white;
+      background: #ffffff;
+      width: 100%;
+      max-width: 450px;
       padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
-    h2 { margin-top: 0; color: #111; }
-    label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }
-    input[type="text"], input[type="file"], button {
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 22px;
+      text-align: center;
+      color: #222;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 12px 0 6px 0;
+      color: #444;
+      font-size: 14px;
+    }
+    input[type="text"], input[type="file"] {
       width: 100%;
       padding: 10px;
-      margin-bottom: 10px;
-      box-sizing: border-box;
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 14px;
     }
     button {
+      width: 100%;
       background: #0070f3;
-      color: white;
-      font-weight: bold;
+      color: #ffffff;
       border: none;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    button:disabled { background: #999; }
-    .result {
-      margin-top: 20px;
-      padding: 12px;
-      background: #eee;
       border-radius: 6px;
-      word-break: break-word;
-      white-space: pre-wrap;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 18px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #888;
+      cursor: not-allowed;
+    }
+    #statusBox {
+      margin-top: 16px;
+      padding: 12px;
+      background: #eef2f6;
+      border-radius: 6px;
       font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      display: none;
     }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>DakGenator</h2>
-    
-    <label for="desc">Prompt / Instruction:</label>
-    <input type="text" id="desc" placeholder="Describe the edit or style..." />
+    <h1>DakGenator</h1>
 
-    <label for="imageInput">Upload Image:</label>
-    <input type="file" id="imageInput" accept="image/*" />
+    <label for="promptInput">Prompt / Edit Instruction:</label>
+    <input type="text" id="promptInput" placeholder="Describe the change or style...">
 
-    <button id="submitBtn" onclick="runInference()">Generate</button>
+    <label for="filePicker">Upload Image:</label>
+    <input type="file" id="filePicker" accept="image/*">
 
-    <div id="output" class="result" style="display:none;"></div>
+    <button id="actionBtn" type="button">Generate</button>
+
+    <div id="statusBox"></div>
   </div>
 
   <script>
-    // Register Service Worker for PWA / Chrome install
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(function(err) {
-        console.log("SW registration skipped or failed:", err);
-      });
-    }
+    document.getElementById("actionBtn").addEventListener("click", async function() {
+      var btn = document.getElementById("actionBtn");
+      var status = document.getElementById("statusBox");
+      var prompt = document.getElementById("promptInput").value;
+      var file = document.getElementById("filePicker").files[0];
 
-    async function runInference() {
-      const btn = document.getElementById("submitBtn");
-      const out = document.getElementById("output");
-      const desc = document.getElementById("desc").value;
-      const fileInput = document.getElementById("imageInput");
-
-      if (!fileInput.files[0]) {
-        alert("Please choose an image first.");
+      if (!file) {
+        alert("Please select an image first.");
         return;
       }
 
       btn.disabled = true;
       btn.innerText = "Processing...";
-      out.style.display = "block";
-      out.innerText = "Connecting to Hugging Face...";
+      status.style.display = "block";
+      status.innerText = "Connecting to Hugging Face model...";
 
       try {
-        // Dynamically import the Gradio client on demand
-        const { Client } = await import("https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js");
-        const app = await Client.connect("dakshghati/DakGenator");
-        
-        out.innerText = "Running AI model...";
-        const result = await app.predict("/predict", [
-          fileInput.files[0],
-          desc
-        ]);
+        var gradio = await import("https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js");
+        var app = await gradio.Client.connect("dakshghati/DakGenator");
+        status.innerText = "Running DakGenator...";
 
-        out.innerText = result.data[0] || JSON.stringify(result.data, null, 2);
+        var result = await app.predict("/predict", [file, prompt]);
+        status.innerText = result.data ? (result.data[0] || JSON.stringify(result.data)) : "Finished!";
       } catch (err) {
-        out.innerText = "Error: " + err.message;
+        status.innerText = "Error: " + err.message;
       } finally {
         btn.disabled = false;
         btn.innerText = "Generate";
       }
-    }
+    });
   </script>
 </body>
 </html>
-
